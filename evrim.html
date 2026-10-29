@@ -1,0 +1,669 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Evrim Simülasyonu</title>
+<style>
+:root{
+  --bg:#0b0f14;--world:#0f1a14;--panel:#121820;--card:#18202a;--line:#263040;
+  --text:#e6edf3;--muted:#8b98a8;--accent:#3fb950;--accent2:#58a6ff;--warn:#f85149;--gold:#e3b341;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--text);
+  font-family:system-ui,-apple-system,"Segoe UI",Roboto,Ubuntu,sans-serif;-webkit-tap-highlight-color:transparent}
+body{display:flex;height:100vh;height:100dvh;overflow:hidden}
+#stage{flex:1;position:relative;min-width:0;min-height:0}
+#world{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none;cursor:crosshair}
+#hud{position:absolute;left:10px;top:10px;display:flex;gap:6px;flex-wrap:wrap;pointer-events:none;right:10px}
+.chip{background:rgba(11,15,20,.78);border:1px solid var(--line);border-radius:999px;padding:5px 11px;font-size:13px;white-space:nowrap}
+.chip b{font-variant-numeric:tabular-nums}
+#panel{width:330px;flex:none;background:var(--panel);border-left:1px solid var(--line);overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:12px}
+@media (max-width:820px){
+  body{flex-direction:column}
+  #stage{flex:none;height:calc(66.7vw + 84px);max-height:62vh;max-height:62dvh}
+  #panel{width:auto;border-left:0;border-top:1px solid var(--line);flex:1}
+  #hud{left:6px;top:6px;gap:4px}
+  .chip{font-size:11.5px;padding:3px 8px}
+}
+h1{font-size:18px;margin:0;display:flex;align-items:center;gap:8px}
+h1 small{font-weight:400;color:var(--muted);font-size:12px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px}
+.card h2{font-size:13px;margin:0 0 10px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;font-weight:600}
+.row{display:flex;gap:8px;align-items:center}
+.btns{display:flex;gap:6px;flex-wrap:wrap}
+button{font:inherit;font-size:14px;color:var(--text);background:#202a36;border:1px solid var(--line);border-radius:9px;padding:8px 12px;cursor:pointer;touch-action:manipulation}
+button:hover{background:#273342}
+button.primary{background:var(--accent);border-color:var(--accent);color:#04120a;font-weight:600}
+button.primary:hover{filter:brightness(1.1)}
+.seg{display:flex;border:1px solid var(--line);border-radius:9px;overflow:hidden}
+.seg button{border:0;border-radius:0;flex:1;padding:7px 0;background:transparent}
+.seg button+button{border-left:1px solid var(--line)}
+.seg button.on{background:var(--accent2);color:#03101f;font-weight:600}
+label.sl{display:block;font-size:13px;margin:10px 0 0}
+label.sl span{float:right;color:var(--muted);font-variant-numeric:tabular-nums}
+input[type=range]{width:100%;accent-color:var(--accent);margin:6px 0 0}
+.tog{display:flex;justify-content:space-between;align-items:center;font-size:14px;margin-top:10px;cursor:pointer}
+.tog input{display:none}
+.tog i{width:40px;height:22px;border-radius:999px;background:#33404f;position:relative;transition:.2s;flex:none}
+.tog i::after{content:"";position:absolute;width:16px;height:16px;border-radius:50%;background:#fff;top:3px;left:3px;transition:.2s}
+.tog input:checked+i{background:var(--accent)}
+.tog input:checked+i::after{left:21px}
+.hint{font-size:12px;color:var(--muted);line-height:1.45;margin:4px 0 0}
+#chart,#hist{width:100%;display:block}
+#hist{margin-top:8px}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:13px}
+.stats div{background:#121a23;border-radius:8px;padding:7px 9px}
+.stats div span{display:block;color:var(--muted);font-size:11px}
+.stats div b{font-size:16px;font-variant-numeric:tabular-nums}
+.gene{display:grid;grid-template-columns:52px 1fr 44px;gap:8px;align-items:center;font-size:13px;margin-top:6px}
+.bar{height:7px;background:#0e141b;border-radius:9px;overflow:hidden}
+.bar i{display:block;height:100%;border-radius:9px}
+.gene em{font-style:normal;text-align:right;color:var(--muted);font-variant-numeric:tabular-nums}
+#inspectEmpty{font-size:13px;color:var(--muted)}
+.legend{display:flex;flex-direction:column;gap:6px;font-size:12.5px;color:var(--muted)}
+.grad{height:8px;border-radius:9px;background:linear-gradient(90deg,hsl(200 75% 55%),hsl(140 75% 50%),hsl(60 85% 50%),hsl(0 80% 55%))}
+details summary{cursor:pointer;font-size:14px}
+details p,details li{font-size:13px;color:var(--muted);line-height:1.5}
+details ul{padding-left:18px;margin:6px 0}
+#over{position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:rgba(5,8,12,.72);text-align:center;padding:20px}
+#over.show{display:flex}
+#over .box{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:22px 26px;max-width:340px}
+#over h3{margin:0 0 8px;font-size:22px}
+#over p{color:var(--muted);margin:0 0 16px;font-size:14px;line-height:1.5}
+.foot{font-size:11.5px;color:var(--muted);text-align:center;padding-bottom:4px}
+</style>
+</head>
+<body>
+
+<div id="stage">
+  <canvas id="world"></canvas>
+  <div id="hud">
+    <div class="chip">⏱ <b id="hTime">0</b></div>
+    <div class="chip">🧬 Nüfus <b id="hPop">0</b></div>
+    <div class="chip">🌱 Yemek <b id="hFood">0</b></div>
+    <div class="chip">🏆 Nesil <b id="hGen">0</b></div>
+    <div class="chip" id="hSeasonChip" style="display:none"><b id="hSeason"></b></div>
+    <div class="chip" id="hPausedChip" style="display:none">⏸ Durduruldu</div>
+  </div>
+  <div id="over"><div class="box">
+    <h3>💀 Nesil tükendi</h3>
+    <p id="overText"></p>
+    <button class="primary" id="overRestart">Yeniden başlat</button>
+  </div></div>
+</div>
+
+<aside id="panel">
+  <h1>🧬 Evrim Simülasyonu <small>v1.0</small></h1>
+
+  <div class="card">
+    <div class="btns">
+      <button class="primary" id="bPause">⏸ Durdur</button>
+      <button id="bAdd">+10 canlı</button>
+      <button id="bReset">↺ Sıfırla</button>
+    </div>
+    <label class="sl" style="margin-top:12px">Simülasyon hızı</label>
+    <div class="seg" id="speedSeg" style="margin-top:6px">
+      <button data-v="1" class="on">1×</button><button data-v="2">2×</button><button data-v="5">5×</button><button data-v="10">10×</button><button data-v="25">25×</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>İstatistik</h2>
+    <div class="stats">
+      <div><span>Ort. hız</span><b id="sSpeed">–</b></div>
+      <div><span>Ort. boyut</span><b id="sSize">–</b></div>
+      <div><span>Ort. algı</span><b id="sSense">–</b></div>
+      <div><span>Avcı sayısı</span><b id="sHunters">–</b></div>
+      <div><span>Doğum</span><b id="sBirths">0</b></div>
+      <div><span>Ölüm</span><b id="sDeaths">0</b></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Grafik</h2>
+    <div class="seg" id="chartSeg">
+      <button data-v="pop" class="on">Nüfus</button><button data-v="speed">Hız</button><button data-v="size">Boyut</button><button data-v="sense">Algı</button>
+    </div>
+    <canvas id="chart" height="150" style="margin-top:10px"></canvas>
+    <canvas id="hist" height="70"></canvas>
+    <p class="hint" id="chartHint"></p>
+  </div>
+
+  <div class="card">
+    <h2>Seçili canlı</h2>
+    <div id="inspectEmpty">Bir canlıya dokun, genlerini ve hayat hikâyesini gör.</div>
+    <div id="inspect" style="display:none"></div>
+  </div>
+
+  <div class="card">
+    <h2>Dünya ayarları</h2>
+    <label class="sl">Yemek miktarı <span id="vFood"></span></label>
+    <input type="range" id="rFood" min="0.2" max="4" step="0.1" value="1.4">
+    <label class="sl">Mutasyon oranı <span id="vMut"></span></label>
+    <input type="range" id="rMut" min="0" max="0.6" step="0.01" value="0.2">
+    <label class="tog">🦖 Avcılık (büyük küçüğü yer)<input type="checkbox" id="tPred" checked><i></i></label>
+    <label class="tog">🌦 Mevsimler (bolluk / kıtlık)<input type="checkbox" id="tSeason"><i></i></label>
+  </div>
+
+  <div class="card">
+    <h2>Renkler</h2>
+    <div class="legend">
+      <div>Renk = hız (mavi yavaş → kırmızı hızlı)</div>
+      <div class="grad"></div>
+      <div>Büyüklük = boyut geni · Parlaklık = algı geni</div>
+      <div>Kırmızı halka = en az bir canlı avlamış</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <details>
+      <summary>Nasıl çalışır?</summary>
+      <ul>
+        <li>Her canlının 3 geni var: <b>hız</b>, <b>boyut</b>, <b>algı</b> (ne kadar uzağı görebildiği).</li>
+        <li>Yaşamak enerji harcar. Hızlı ve büyük olmak çok pahalı, uzağı görmek de enerji ister.</li>
+        <li>Yeterince yemek yiyen canlı ikiye bölünür. Yavru, ebeveyninin genlerini küçük değişikliklerle (mutasyon) alır.</li>
+        <li>Avcılık açıkken kendinden %30 büyük olan küçüğü yiyebilir, küçük olan büyükten kaçar.</li>
+        <li>Kimse genleri seçmiyor. Hayatta kalan çoğalır, gerisi doğal seçilim.</li>
+      </ul>
+      <p>Kısayollar: <b>Boşluk</b> durdur/başlat · <b>R</b> sıfırla</p>
+    </details>
+  </div>
+
+  <div class="foot">Emir Aras Mart · tek dosya, internetsiz çalışır</div>
+</aside>
+
+<script>
+(() => {
+'use strict';
+
+// ---------- Sabitler ----------
+const W = 1200, H = 800;              // dünya boyutu (cihazdan bağımsız)
+const TAU = Math.PI * 2;
+const CELL = 60;                       // uzaysal ızgara hücresi
+const GC = Math.ceil(W / CELL), GR = Math.ceil(H / CELL);
+const PRED_RATIO = 1.3;                // avlamak için gereken boyut oranı
+const REPRO_E = 150;                   // bölünme eşiği
+const MAX_E = 300;
+const FOOD_E = 25;
+const FOOD_CAP = 800;
+const POP_CAP = 700;
+const SEASON_LEN = 3000;
+
+const GENES = {
+  speed: { min: 0.3, max: 5,   label: 'Hız',   color: '#58a6ff', dec: 2 },
+  size:  { min: 3,   max: 20,  label: 'Boyut', color: '#e3b341', dec: 1 },
+  sense: { min: 10,  max: 250, label: 'Algı',  color: '#bc8cff', dec: 0 },
+};
+const KEYS = Object.keys(GENES);
+
+const settings = { foodRate: 1.4, mutation: 0.2, predation: true, seasons: false, speed: 1, paused: false };
+
+// ---------- Durum ----------
+let creatures, food, tick, nextId, history, maxGen, births, deaths, selected, extinct;
+
+// ---------- Yardımcılar ----------
+const rand = (a, b) => a + Math.random() * (b - a);
+const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
+function gauss() { let u = 0, v = 0; while (!u) u = Math.random(); while (!v) v = Math.random(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(TAU * v); }
+function angDiff(a, b) { let d = a - b; while (d > Math.PI) d -= TAU; while (d < -Math.PI) d += TAU; return d; }
+function fmtTime(t) { return t < 1000 ? String(t) : t < 1e6 ? (t / 1000).toFixed(1) + 'B' : (t / 1e6).toFixed(2) + 'M'; }
+const norm = (k, v) => (v - GENES[k].min) / (GENES[k].max - GENES[k].min);
+
+function colorFor(g) {
+  const hue = 200 - norm('speed', g.speed) * 200;         // mavi -> kırmızı
+  const light = 40 + norm('sense', g.sense) * 30;          // algı -> parlaklık
+  return `hsl(${hue.toFixed(0)} 78% ${light.toFixed(0)}%)`;
+}
+
+function makeCreature(x, y, genes, gen, energy) {
+  return { id: nextId++, x, y, dir: Math.random() * TAU, genes, gen, energy,
+    age: 0, maxAge: 2600 + Math.random() * 1800, kids: 0, ate: 0, kills: 0,
+    alive: true, cause: '', color: colorFor(genes) };
+}
+
+function mutate(g) {
+  const n = {};
+  for (const k of KEYS) {
+    let v = g[k];
+    if (Math.random() < settings.mutation) v += gauss() * (GENES[k].max - GENES[k].min) * 0.06;
+    n[k] = clamp(v, GENES[k].min, GENES[k].max);
+  }
+  return n;
+}
+
+function spawnFood(n) {
+  for (let i = 0; i < n && food.length < FOOD_CAP; i++)
+    food.push({ x: rand(8, W - 8), y: rand(8, H - 8), e: FOOD_E, a: true });
+}
+
+function addRandom(n) {
+  for (let i = 0; i < n && creatures.length < POP_CAP; i++) {
+    const g = { speed: clamp(1.5 + gauss() * 0.2, 0.3, 5), size: clamp(8 + gauss() * 0.8, 3, 20), sense: clamp(60 + gauss() * 8, 10, 250) };
+    creatures.push(makeCreature(rand(40, W - 40), rand(40, H - 40), g, 0, 100));
+  }
+}
+
+function reset() {
+  creatures = []; food = []; tick = 0; nextId = 1; history = [];
+  maxGen = 0; births = 0; deaths = 0; selected = null; extinct = false;
+  addRandom(30);
+  spawnFood(220);
+  record();
+  overEl.classList.remove('show');
+  updateInspect(true);
+}
+
+// ---------- Uzaysal ızgara (performans) ----------
+const cGrid = Array.from({ length: GC * GR }, () => []);
+const fGrid = Array.from({ length: GC * GR }, () => []);
+function cellOf(x, y) { return clamp((y / CELL) | 0, 0, GR - 1) * GC + clamp((x / CELL) | 0, 0, GC - 1); }
+function buildGrids() {
+  for (let i = 0; i < cGrid.length; i++) { cGrid[i].length = 0; fGrid[i].length = 0; }
+  for (const c of creatures) cGrid[cellOf(c.x, c.y)].push(c);
+  for (const f of food) fGrid[cellOf(f.x, f.y)].push(f);
+}
+
+function seasonFactor() { return 1 + 0.85 * Math.sin(tick * TAU / SEASON_LEN); }
+
+// ---------- Simülasyon adımı ----------
+function step() {
+  tick++;
+  let rate = settings.foodRate * (settings.seasons ? seasonFactor() : 1);
+  let n = Math.floor(rate); if (Math.random() < rate - n) n++;
+  spawnFood(n);
+
+  buildGrids();
+  const born = [];
+  for (const c of creatures) if (c.alive) update(c, born);
+
+  let w = 0;
+  for (const c of creatures) if (c.alive) creatures[w++] = c;
+  creatures.length = w;
+  for (const b of born) creatures.push(b);
+
+  w = 0;
+  for (const f of food) if (f.a) food[w++] = f;
+  food.length = w;
+
+  if (tick % 20 === 0) record();
+}
+
+function update(c, born) {
+  const g = c.genes, r = g.sense, r2 = r * r;
+  c.age++;
+
+  // --- Algıla ---
+  let threat = null, tD = r2, target = null, gD = r2, isPrey = false;
+  const x0 = Math.max(0, ((c.x - r) / CELL) | 0), x1 = Math.min(GC - 1, ((c.x + r) / CELL) | 0);
+  const y0 = Math.max(0, ((c.y - r) / CELL) | 0), y1 = Math.min(GR - 1, ((c.y + r) / CELL) | 0);
+  for (let cy = y0; cy <= y1; cy++) for (let cx = x0; cx <= x1; cx++) {
+    const idx = cy * GC + cx;
+    if (settings.predation) {
+      const cl = cGrid[idx];
+      for (let i = 0; i < cl.length; i++) {
+        const o = cl[i]; if (o === c || !o.alive) continue;
+        const dx = o.x - c.x, dy = o.y - c.y, d = dx * dx + dy * dy;
+        if (d > r2) continue;
+        if (o.genes.size >= g.size * PRED_RATIO) { if (d < tD) { tD = d; threat = o; } }
+        else if (g.size >= o.genes.size * PRED_RATIO) { if (d < gD) { gD = d; target = o; isPrey = true; } }
+      }
+    }
+    const fl = fGrid[idx];
+    for (let i = 0; i < fl.length; i++) {
+      const f = fl[i]; if (!f.a) continue;
+      const dx = f.x - c.x, dy = f.y - c.y, d = dx * dx + dy * dy;
+      if (d < gD) { gD = d; target = f; isPrey = false; }
+    }
+  }
+
+  // --- Karar ver ---
+  let want;
+  if (threat) want = Math.atan2(c.y - threat.y, c.x - threat.x);
+  else if (target) want = Math.atan2(target.y - c.y, target.x - c.x);
+  else { c.dir += (Math.random() - 0.5) * 0.35; want = c.dir; }
+  c.dir += clamp(angDiff(want, c.dir), -0.3, 0.3);
+
+  // --- Hareket ---
+  const sp = g.speed;
+  c.x += Math.cos(c.dir) * sp; c.y += Math.sin(c.dir) * sp;
+  const m = g.size + 2;
+  if (c.x < m) { c.x = m; c.dir = Math.PI - c.dir; } else if (c.x > W - m) { c.x = W - m; c.dir = Math.PI - c.dir; }
+  if (c.y < m) { c.y = m; c.dir = -c.dir; } else if (c.y > H - m) { c.y = H - m; c.dir = -c.dir; }
+
+  // --- Enerji bedeli ---
+  const s = g.size / 8;
+  c.energy -= 0.04 + 0.05 * s * s * sp * sp + 0.0008 * r;
+
+  // --- Ye ---
+  if (target) {
+    const dx = target.x - c.x, dy = target.y - c.y, d = dx * dx + dy * dy;
+    if (isPrey) {
+      const rr = g.size + target.genes.size * 0.5;
+      if (target.alive && d < rr * rr) {
+        target.alive = false; target.cause = 'Avlandı (#' + c.id + ' tarafından)';
+        c.energy += Math.max(0, target.energy) * 0.6 + 20; c.kills++; deaths++;
+      }
+    } else {
+      const rr = g.size + 3;
+      if (target.a && d < rr * rr) { target.a = false; c.energy += target.e; c.ate++; }
+    }
+  }
+  if (c.energy > MAX_E) c.energy = MAX_E;
+
+  // --- Çoğal ---
+  if (c.energy >= REPRO_E && creatures.length + born.length < POP_CAP) {
+    c.energy /= 2;
+    const ch = makeCreature(clamp(c.x + rand(-6, 6), 5, W - 5), clamp(c.y + rand(-6, 6), 5, H - 5), mutate(g), c.gen + 1, c.energy);
+    ch.dir = c.dir + Math.PI;
+    born.push(ch); c.kids++; births++;
+    if (ch.gen > maxGen) maxGen = ch.gen;
+  }
+
+  // --- Öl ---
+  if (c.energy <= 0 || c.age > c.maxAge) {
+    c.alive = false; deaths++;
+    c.cause = c.energy <= 0 ? 'Açlıktan öldü' : 'Yaşlılıktan öldü';
+    if (food.length < FOOD_CAP) food.push({ x: c.x, y: c.y, e: 12, a: true });
+  }
+}
+
+// ---------- Kayıt / istatistik ----------
+function averages() {
+  const a = { speed: 0, size: 0, sense: 0, hunters: 0 };
+  const n = creatures.length;
+  if (!n) return null;
+  for (const c of creatures) { a.speed += c.genes.speed; a.size += c.genes.size; a.sense += c.genes.sense; if (c.kills) a.hunters++; }
+  a.speed /= n; a.size /= n; a.sense /= n;
+  return a;
+}
+function record() {
+  const a = averages();
+  history.push({ t: tick, pop: creatures.length, food: food.length,
+    speed: a ? a.speed : null, size: a ? a.size : null, sense: a ? a.sense : null });
+  if (history.length > 500) history = history.filter((_, i) => i % 2 === 0 || i === history.length - 1);
+}
+
+// ---------- Çizim ----------
+const cv = document.getElementById('world'), ctx = cv.getContext('2d');
+const stage = document.getElementById('stage');
+let dpr = 1, sc = 1, ox = 0, oy = 0, cw = 0, ch = 0;
+function resize() {
+  dpr = Math.min(window.devicePixelRatio || 1, 2);
+  cw = stage.clientWidth; ch = stage.clientHeight;
+  cv.width = Math.round(cw * dpr); cv.height = Math.round(ch * dpr);
+  sc = Math.min(cw / W, ch / H);
+  ox = (cw - W * sc) / 2;
+  const free = ch - H * sc, hudH = document.getElementById('hud').offsetHeight + 16;
+  oy = Math.max(free / 2, Math.min(hudH, free));   // HUD'un altına yerleş
+  resizeCharts();
+}
+
+function render() {
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.fillStyle = '#0b0f14'; ctx.fillRect(0, 0, cv.width, cv.height);
+  ctx.setTransform(dpr * sc, 0, 0, dpr * sc, dpr * ox, dpr * oy);
+
+  // zemin (mevsime göre ton)
+  let bg = '#0f1a14';
+  if (settings.seasons) { const f = (seasonFactor() - 0.15) / 1.7; bg = `hsl(${(200 - f * 60).toFixed(0)} 28% ${(8 + f * 3).toFixed(1)}%)`; }
+  ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
+  ctx.strokeStyle = 'rgba(255,255,255,0.035)'; ctx.lineWidth = 1;
+  ctx.beginPath();
+  for (let x = 100; x < W; x += 100) { ctx.moveTo(x, 0); ctx.lineTo(x, H); }
+  for (let y = 100; y < H; y += 100) { ctx.moveTo(0, y); ctx.lineTo(W, y); }
+  ctx.stroke();
+  ctx.strokeStyle = '#263040'; ctx.lineWidth = 2; ctx.strokeRect(1, 1, W - 2, H - 2);
+
+  // yemekler
+  ctx.fillStyle = '#4ade80';
+  ctx.beginPath();
+  for (const f of food) { ctx.moveTo(f.x + 2.6, f.y); ctx.arc(f.x, f.y, 2.6, 0, TAU); }
+  ctx.fill();
+
+  // seçili canlının algı alanı
+  if (selected && selected.alive) {
+    ctx.setLineDash([6, 6]); ctx.strokeStyle = 'rgba(255,255,255,0.35)'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.arc(selected.x, selected.y, selected.genes.sense, 0, TAU); ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  // canlılar
+  for (const c of creatures) {
+    const r = c.genes.size;
+    ctx.fillStyle = c.color;
+    ctx.beginPath(); ctx.arc(c.x, c.y, r, 0, TAU); ctx.fill();
+    if (c.kills) { ctx.strokeStyle = '#f85149'; ctx.lineWidth = 2; ctx.stroke(); }
+    // göz
+    const ex = c.x + Math.cos(c.dir) * r * 0.55, ey = c.y + Math.sin(c.dir) * r * 0.55;
+    ctx.fillStyle = 'rgba(5,8,12,0.85)';
+    ctx.beginPath(); ctx.arc(ex, ey, Math.max(1.4, r * 0.22), 0, TAU); ctx.fill();
+  }
+
+  if (selected && selected.alive) {
+    ctx.strokeStyle = '#fff'; ctx.lineWidth = 2.5;
+    ctx.beginPath(); ctx.arc(selected.x, selected.y, selected.genes.size + 5, 0, TAU); ctx.stroke();
+  }
+}
+
+// ---------- Grafikler ----------
+const chartCv = document.getElementById('chart'), cctx = chartCv.getContext('2d');
+const histCv = document.getElementById('hist'), hctx = histCv.getContext('2d');
+let chartMode = 'pop';
+function resizeCharts() {
+  for (const [c, h] of [[chartCv, 150], [histCv, 70]]) {
+    const w = c.clientWidth || 280;
+    c.width = Math.round(w * dpr); c.height = Math.round(h * dpr); c.style.height = h + 'px';
+  }
+}
+function drawChart() {
+  const w = chartCv.width / dpr, h = chartCv.height / dpr;
+  cctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  cctx.clearRect(0, 0, w, h);
+  const pad = { l: 34, r: 6, t: 8, b: 16 };
+  const pw = w - pad.l - pad.r, ph = h - pad.t - pad.b;
+  if (history.length < 2) return;
+  const t0 = history[0].t, t1 = history[history.length - 1].t || 1;
+  const X = t => pad.l + (t - t0) / Math.max(1, t1 - t0) * pw;
+
+  let series, lo, hi;
+  if (chartMode === 'pop') {
+    hi = 10; for (const p of history) hi = Math.max(hi, p.pop, p.food * 0.5);
+    hi = Math.ceil(hi / 10) * 10; lo = 0;
+    series = [{ key: 'food', color: 'rgba(74,222,128,0.45)', scale: 0.5 }, { key: 'pop', color: '#58a6ff', scale: 1 }];
+  } else {
+    const G = GENES[chartMode];
+    lo = Infinity; hi = -Infinity;
+    for (const p of history) if (p[chartMode] != null) { lo = Math.min(lo, p[chartMode]); hi = Math.max(hi, p[chartMode]); }
+    if (!isFinite(lo)) return;
+    const span = Math.max(hi - lo, (G.max - G.min) * 0.05);
+    lo = Math.max(G.min, lo - span * 0.2); hi = Math.min(G.max, hi + span * 0.2);
+    series = [{ key: chartMode, color: G.color, scale: 1 }];
+  }
+  const Y = v => pad.t + ph - (v - lo) / Math.max(1e-9, hi - lo) * ph;
+
+  // eksenler
+  cctx.strokeStyle = '#263040'; cctx.lineWidth = 1; cctx.fillStyle = '#8b98a8'; cctx.font = '10px system-ui,sans-serif';
+  cctx.textAlign = 'right'; cctx.textBaseline = 'middle';
+  for (let i = 0; i <= 3; i++) {
+    const v = lo + (hi - lo) * i / 3, y = Y(v);
+    cctx.beginPath(); cctx.moveTo(pad.l, y); cctx.lineTo(w - pad.r, y); cctx.stroke();
+    const dec = chartMode === 'pop' ? 0 : GENES[chartMode].dec;
+    cctx.fillText(v.toFixed(dec), pad.l - 4, y);
+  }
+  cctx.textAlign = 'left'; cctx.textBaseline = 'alphabetic';
+  cctx.fillText(fmtTime(t0), pad.l, h - 3);
+  cctx.textAlign = 'right'; cctx.fillText(fmtTime(t1), w - pad.r, h - 3);
+
+  for (const s of series) {
+    cctx.strokeStyle = s.color; cctx.lineWidth = 2; cctx.lineJoin = 'round';
+    cctx.beginPath(); let started = false;
+    for (const p of history) {
+      const v = p[s.key]; if (v == null) { started = false; continue; }
+      const x = X(p.t), y = Y(v * s.scale);
+      if (!started) { cctx.moveTo(x, y); started = true; } else cctx.lineTo(x, y);
+    }
+    cctx.stroke();
+  }
+
+  const hint = document.getElementById('chartHint');
+  if (chartMode === 'pop') hint.innerHTML = '<span style="color:#58a6ff">■</span> canlı sayısı &nbsp; <span style="color:#4ade80">■</span> yemek (½ ölçek)';
+  else hint.textContent = GENES[chartMode].label + ' geninin zaman içindeki ortalaması ve şu anki dağılımı';
+}
+function drawHist() {
+  const w = histCv.width / dpr, h = histCv.height / dpr;
+  hctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  hctx.clearRect(0, 0, w, h);
+  histCv.style.display = chartMode === 'pop' ? 'none' : 'block';
+  if (chartMode === 'pop' || !creatures.length) return;
+  const G = GENES[chartMode], B = 24, bins = new Array(B).fill(0);
+  for (const c of creatures) bins[Math.min(B - 1, (norm(chartMode, c.genes[chartMode]) * B) | 0)]++;
+  const mx = Math.max(...bins), pl = 34, bw = (w - pl - 6) / B;
+  hctx.fillStyle = G.color;
+  for (let i = 0; i < B; i++) {
+    const bh = bins[i] / mx * (h - 16);
+    hctx.fillRect(pl + i * bw + 1, h - 14 - bh, bw - 2, bh);
+  }
+  hctx.fillStyle = '#8b98a8'; hctx.font = '10px system-ui,sans-serif';
+  hctx.textAlign = 'left'; hctx.fillText(G.min, pl, h - 2);
+  hctx.textAlign = 'right'; hctx.fillText(G.max, w - 6, h - 2);
+  hctx.textAlign = 'left'; hctx.fillText('dağılım', 0, 10);
+}
+
+// ---------- Arayüz ----------
+const $ = id => document.getElementById(id);
+const overEl = $('over');
+let lastHudH = 0;
+function updateHUD() {
+  $('hTime').textContent = fmtTime(tick);
+  $('hPop').textContent = creatures.length;
+  $('hFood').textContent = food.length;
+  $('hGen').textContent = maxGen;
+  $('hSeasonChip').style.display = settings.seasons ? '' : 'none';
+  if (settings.seasons) $('hSeason').textContent = seasonFactor() >= 1 ? '🌸 Bolluk' : '❄️ Kıtlık';
+  $('hPausedChip').style.display = settings.paused ? '' : 'none';
+  const hh = $('hud').offsetHeight;
+  if (hh !== lastHudH) { lastHudH = hh; resize(); }
+  const a = averages();
+  $('sSpeed').textContent = a ? a.speed.toFixed(2) : '–';
+  $('sSize').textContent = a ? a.size.toFixed(1) : '–';
+  $('sSense').textContent = a ? a.sense.toFixed(0) : '–';
+  $('sHunters').textContent = a ? a.hunters : '–';
+  $('sBirths').textContent = births;
+  $('sDeaths').textContent = deaths;
+}
+
+function geneRow(k, v) {
+  const G = GENES[k];
+  return `<div class="gene"><span>${G.label}</span><div class="bar"><i style="width:${(norm(k, v) * 100).toFixed(0)}%;background:${G.color}"></i></div><em>${v.toFixed(G.dec)}</em></div>`;
+}
+let lastInspectKey = '';
+function updateInspect(force) {
+  const box = $('inspect'), empty = $('inspectEmpty');
+  if (!selected) { box.style.display = 'none'; empty.style.display = ''; return; }
+  const c = selected;
+  const key = [c.id, c.alive, c.energy | 0, c.age / 10 | 0, c.kids, c.ate, c.kills].join();
+  if (!force && key === lastInspectKey) return;
+  lastInspectKey = key;
+  empty.style.display = 'none'; box.style.display = '';
+  const eP = clamp(c.energy / REPRO_E, 0, 1) * 100;
+  box.innerHTML = `
+    <div class="row" style="justify-content:space-between;margin-bottom:6px">
+      <div class="row"><span style="width:16px;height:16px;border-radius:50%;background:${c.color};display:inline-block"></span><b>#${c.id}</b></div>
+      <span style="font-size:13px;color:${c.alive ? 'var(--accent)' : 'var(--warn)'}">${c.alive ? '● Yaşıyor' : '💀 ' + c.cause}</span>
+    </div>
+    ${geneRow('speed', c.genes.speed)}${geneRow('size', c.genes.size)}${geneRow('sense', c.genes.sense)}
+    <div class="gene"><span>Enerji</span><div class="bar"><i style="width:${eP.toFixed(0)}%;background:#3fb950"></i></div><em>${Math.max(0, c.energy).toFixed(0)}</em></div>
+    <div class="stats" style="margin-top:10px">
+      <div><span>Nesil</span><b>${c.gen}</b></div>
+      <div><span>Yaş</span><b>${c.age}</b></div>
+      <div><span>Yediği yemek</span><b>${c.ate}</b></div>
+      <div><span>Avladığı</span><b>${c.kills}</b></div>
+      <div><span>Yavru</span><b>${c.kids}</b></div>
+      <div><span>Bölünmeye</span><b>${c.alive ? Math.max(0, REPRO_E - c.energy).toFixed(0) : '–'}</b></div>
+    </div>`;
+}
+
+// tıklayıp canlı seç
+cv.addEventListener('pointerdown', e => {
+  const rect = cv.getBoundingClientRect();
+  const wx = (e.clientX - rect.left - ox) / sc, wy = (e.clientY - rect.top - oy) / sc;
+  let best = null, bd = (24 / Math.min(1, sc)) ** 2;
+  for (const c of creatures) {
+    const dx = c.x - wx, dy = c.y - wy, d = dx * dx + dy * dy - c.genes.size * c.genes.size;
+    if (d < bd) { bd = d; best = c; }
+  }
+  selected = best;
+  updateInspect(true);
+  if (settings.paused) render();
+});
+
+function setPaused(p) {
+  settings.paused = p;
+  $('bPause').textContent = p ? '▶ Devam' : '⏸ Durdur';
+  updateHUD();
+}
+$('bPause').onclick = () => setPaused(!settings.paused);
+$('bReset').onclick = () => reset();
+$('bAdd').onclick = () => { addRandom(10); if (creatures.length) { extinct = false; overEl.classList.remove('show'); } updateHUD(); };
+$('overRestart').onclick = () => reset();
+
+function bindSeg(id, fn) {
+  const seg = $(id);
+  seg.addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    seg.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b));
+    fn(b.dataset.v);
+  });
+}
+bindSeg('speedSeg', v => settings.speed = +v);
+bindSeg('chartSeg', v => { chartMode = v; drawChart(); drawHist(); });
+
+function bindRange(id, out, fn, fmt) {
+  const el = $(id), o = $(out);
+  const upd = () => { fn(+el.value); o.textContent = fmt(+el.value); };
+  el.addEventListener('input', upd); upd();
+}
+bindRange('rFood', 'vFood', v => settings.foodRate = v, v => v.toFixed(1) + '/adım');
+bindRange('rMut', 'vMut', v => settings.mutation = v, v => '%' + Math.round(v * 100));
+$('tPred').onchange = e => settings.predation = e.target.checked;
+$('tSeason').onchange = e => settings.seasons = e.target.checked;
+
+window.addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT') return;
+  if (e.code === 'Space') { e.preventDefault(); setPaused(!settings.paused); }
+  else if (e.key === 'r' || e.key === 'R') reset();
+});
+
+// ---------- Ana döngü ----------
+let frameNo = 0;
+function frame() {
+  if (!settings.paused && !extinct) {
+    const t0 = performance.now();
+    for (let i = 0; i < settings.speed; i++) {
+      step();
+      if (!creatures.length) break;
+      if (performance.now() - t0 > 30) break;   // zayıf cihazda donmayı önle
+    }
+    if (!creatures.length && !extinct) {
+      extinct = true; record();
+      $('overText').textContent = `Son canlı ${fmtTime(tick)} adımında öldü. En uzun soy ${maxGen}. nesle ulaştı. Yemeği artırıp ya da mutasyonu değiştirip tekrar dene.`;
+      overEl.classList.add('show');
+    }
+  }
+  render();
+  if (frameNo % 8 === 0) { updateHUD(); updateInspect(false); }
+  if (frameNo % 20 === 0) { drawChart(); drawHist(); }
+  frameNo++;
+  requestAnimationFrame(frame);
+}
+
+new ResizeObserver(() => { resize(); drawChart(); drawHist(); if (settings.paused) render(); }).observe(stage);
+resize();
+reset();
+updateHUD();
+requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
